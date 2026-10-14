@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  wallets   Wallet[]
+  products  Product[]
+  purchases Purchase[]
+}
+
+model Wallet {
+  id      String @id @default(cuid())
+  address String @unique
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id          String     @id
+  name        String
+  description String
+  category    String
+  priceWei    String
+  sellerId    String
+  seller      User       @relation(fields: [sellerId], references: [id])
+  available   Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id          String       @id @default(cuid())
+  productId   String       @unique
+  buyerId     String
+  amountWei   String
+  createdAt   DateTime     @default(now())
+  product     Product      @relation(fields: [productId], references: [id])
+  buyer       User         @relation(fields: [buyerId], references: [id])
+  transaction Transaction?
+}
+
+model Transaction {
+  id          String                @id @default(cuid())
+  hash        String                @unique
+  mode        String
+  status      String
+  blockNumber Int?
+  purchaseId  String                @unique
+  purchase    Purchase              @relation(fields: [purchaseId], references: [id])
+  blockLinks  BlockTransaction[]
+  createdAt   DateTime              @default(now())
+}
+
+model Block {
+  number       Int                 @id
+  hash         String              @unique
+  previousHash String
+  merkleRoot   String
+  timestamp    DateTime            @default(now())
+  transactions BlockTransaction[]
+}
+
+model BlockTransaction {
+  blockNumber   Int
+  transactionId String      @unique
+  block         Block       @relation(fields: [blockNumber], references: [number])
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@id([blockNumber, transactionId])
+}
+
+model SmartContractDeployment {
+  id          String    @id @default(cuid())
+  network     String
+  address     String?
+  deployTxHash String?
+  deployedAt  DateTime?
+}

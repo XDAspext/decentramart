@@ -1,0 +1,8 @@
+import {describe,it,expect} from 'vitest';
+import {sha256,merkleRoot,merkleProof,verifyMerkleProof,makeBlock,validatePurchase,verifyChain} from './ledger';
+describe('educational ledger cryptography',()=>{
+it('calculates stable SHA-256 hashes',async()=>{expect(await sha256('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');expect(await sha256('abc')).toBe(await sha256('abc'));expect(await sha256('abd')).not.toBe(await sha256('abc'));});
+it('calculates and verifies Merkle inclusion proofs',async()=>{const leaves=await Promise.all(['a','b','c'].map(sha256));const root=await merkleRoot(leaves);const proof=await merkleProof(leaves,2);expect(await verifyMerkleProof(leaves[2],proof,root)).toBe(true);expect(await verifyMerkleProof(await sha256('tampered'),proof,root)).toBe(false);});
+it('links blocks to the previous block hash',async()=>{const first=await makeBlock(1,'0'.repeat(64),[]);const second=await makeBlock(2,first.hash,[]);expect(second.previousHash).toBe(first.hash);expect(second.hash).not.toBe(first.hash);expect(await verifyChain([first,second])).toBe(true);expect(await verifyChain([first,{...second,previousHash:'f'.repeat(64)}])).toBe(false);});
+it('validates purchase availability, identity, and safe integer balances',()=>{expect(validatePurchase({available:true,seller:'s',buyer:'b',priceCents:200,balanceCents:200})).toBe(true);expect(()=>validatePurchase({available:false,seller:'s',buyer:'b',priceCents:2,balanceCents:3})).toThrow();expect(()=>validatePurchase({available:true,seller:'a',buyer:'a',priceCents:2,balanceCents:3})).toThrow();expect(()=>validatePurchase({available:true,seller:'s',buyer:'b',priceCents:3,balanceCents:2})).toThrow();});
+});
