@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {sha256,merkleRoot,merkleProof,verifyMerkleProof,makeBlock,validatePurchase,verifyChain,hashTransaction,type LedgerTx} from './ledger';
+import {sha256,merkleRoot,merkleProof,verifyMerkleProof,makeBlock,validatePurchase,verifyChain,hashTransaction,verifyTxHash,type LedgerTx} from './ledger';
 
 describe('educational ledger cryptography',()=>{
   it('calculates stable SHA-256 hashes',async()=>{
@@ -41,5 +41,13 @@ describe('educational ledger cryptography',()=>{
     expect(()=>validatePurchase({available:false,seller:'s',buyer:'b',priceCents:2,balanceCents:3})).toThrow();
     expect(()=>validatePurchase({available:true,seller:'a',buyer:'a',priceCents:2,balanceCents:3})).toThrow();
     expect(()=>validatePurchase({available:true,seller:'s',buyer:'b',priceCents:3,balanceCents:2})).toThrow();
+  });
+
+  it('verifies transaction payload hash authenticity',async()=>{
+    const timestamp='2026-10-18T12:00:00.000Z';
+    const tx:LedgerTx={id:'TX-0002',hash:'',productId:'DM-002',product:'Keyboard',buyer:'0xBuyer',seller:'0xSeller',amount:0.24,timestamp,block:1,status:'Confirmed',mode:'EDUCATIONAL DEMO'};
+    tx.hash=await hashTransaction(tx);
+    expect(await verifyTxHash(tx)).toBe(true);
+    expect(await verifyTxHash({...tx,hash:'badhash'})).toBe(false);
   });
 });
