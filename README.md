@@ -16,7 +16,7 @@ Next.js App Router, React, TypeScript, Tailwind CSS, Lucide, Recharts, Prisma/SQ
 npm install
 npm run dev
 ```
-Open http://localhost:3000. Browser local storage seeds deterministic marketplace products and demo wallets on first use. The main classroom demo does not require a database or `.env` file.
+Open http://localhost:3000. Browser local storage seeds deterministic marketplace products and demo wallets on first use. The main classroom demo does not require a database or `.env` file. Use the Light mode/Dark mode control in the header to change the appearance; the selected theme is saved in this browser and is independent of the demo reset.
 
 Optional SQLite schema setup:
 
@@ -52,7 +52,7 @@ Hardhat provides local test accounts and an ephemeral network. The contract has 
 
 ## Tests
 
-- `npm test` runs the Vitest test suite (additions can cover browser ledger primitives).
+- `npm test` runs the Vitest tests for SHA-256 hashing, transaction hashes, Merkle roots and proofs, chain integrity, and purchase validation.
 - `npm run contract:test` runs the Hardhat contract tests.
 - `npm run lint` runs the TypeScript type check.
 
