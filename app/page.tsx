@@ -37,6 +37,9 @@ function formatAlt(n:number,curr:'ETH'|'INR',rate:number=DEFAULT_ETH_RATE){
  return '≈ ₹'+inr.toLocaleString('en-IN',{maximumFractionDigits:inr>=1000?0:2,minimumFractionDigits:inr>=1000?0:2});
 }
 const short=(s:string)=>s.length>22?s.slice(0,10)+'…'+s.slice(-8):s;
+function readBrowserStorage(key:string){try{return window.localStorage.getItem(key)}catch{return null}}
+function writeBrowserStorage(key:string,value:string){try{window.localStorage.setItem(key,value);return true}catch{return false}}
+function removeBrowserStorage(key:string){try{window.localStorage.removeItem(key);return true}catch{return false}}
 
 export default function Home(){
  const [theme,setTheme]=useState<'dark'|'light'>('dark');
@@ -51,11 +54,11 @@ export default function Home(){
  const fmtAlt=(n:number)=>formatAlt(n,currency,ethRate);
 
  useEffect(()=>{
-  const savedTheme=localStorage.getItem('decentramart-theme');
+  const savedTheme=readBrowserStorage('decentramart-theme');
   if(savedTheme==='light'||savedTheme==='dark')setTheme(savedTheme);
-  const savedCurrency=localStorage.getItem('decentramart-currency');
+  const savedCurrency=readBrowserStorage('decentramart-currency');
   if(savedCurrency==='ETH'||savedCurrency==='INR')setCurrency(savedCurrency);
-  const raw=localStorage.getItem('decentramart-v1');
+  const raw=readBrowserStorage('decentramart-v1');
   if(raw){try{const d=JSON.parse(raw);setProducts(d.products||baseProducts);setTxs(d.txs||[]);setBlocks(d.blocks||[]);setAccountId(d.accountId||'maya');}catch{}}
  },[]);
 
@@ -72,9 +75,9 @@ export default function Home(){
   return ()=>{active=false;};
  },[]);
 
- useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('decentramart-theme',theme)},[theme]);
- useEffect(()=>{localStorage.setItem('decentramart-currency',currency);},[currency]);
- useEffect(()=>{localStorage.setItem('decentramart-v1',JSON.stringify({products,txs,blocks,accountId}));},[products,txs,blocks,accountId]);
+ useEffect(()=>{document.documentElement.dataset.theme=theme;if(!writeBrowserStorage('decentramart-theme',theme))setToast('Browser storage is unavailable; your theme will reset when you leave this page.')},[theme]);
+ useEffect(()=>{if(!writeBrowserStorage('decentramart-currency',currency))setToast('Browser storage is unavailable; preferences will reset when you leave this page.')},[currency]);
+ useEffect(()=>{if(!writeBrowserStorage('decentramart-v1',JSON.stringify({products,txs,blocks,accountId})))setToast('Browser storage is unavailable; demo changes will not persist after you leave this page.')},[products,txs,blocks,accountId]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),3200);return()=>clearTimeout(t)},[toast]);
 
  const availableCategories=['All categories',...Array.from(new Set(products.map(p=>p.category)))];
@@ -84,7 +87,7 @@ export default function Home(){
   const matchAvail=availability==='all'||(availability==='available'?p.available:!p.available);
   return matchQuery&&matchCategory&&matchAvail;
  }).sort((a,b)=>sort==='Price: low to high'?a.price-b.price:sort==='Price: high to low'?b.price-a.price:0),[products,query,category,availability,sort]);
- const [balances,setBalances]=useState<Record<string,number>>({maya:4.25,alex:2.8,sam:1.6});const [balancesLoaded,setBalancesLoaded]=useState(false);useEffect(()=>{try{const b=JSON.parse(localStorage.getItem('decentramart-balances')||'{}');setBalances({...{maya:4.25,alex:2.8,sam:1.6},...b})}catch{}finally{setBalancesLoaded(true)}},[]);useEffect(()=>{if(balancesLoaded)localStorage.setItem('decentramart-balances',JSON.stringify(balances))},[balances,balancesLoaded]);
+ const [balances,setBalances]=useState<Record<string,number>>({maya:4.25,alex:2.8,sam:1.6});const [balancesLoaded,setBalancesLoaded]=useState(false);useEffect(()=>{try{const b=JSON.parse(readBrowserStorage('decentramart-balances')||'{}');setBalances({...{maya:4.25,alex:2.8,sam:1.6},...b})}catch{}finally{setBalancesLoaded(true)}},[]);useEffect(()=>{if(balancesLoaded&&!writeBrowserStorage('decentramart-balances',JSON.stringify(balances)))setToast('Browser storage is unavailable; demo changes will not persist after you leave this page.')},[balances,balancesLoaded]);
 
  const currentBalance=walletMode==='DEMO'?balances[accountId]??account.balance:0;
 
@@ -110,7 +113,7 @@ export default function Home(){
  async function connectMetaMask(){const eth=(window as any).ethereum;if(!eth){setToast('MetaMask was not detected. Use the educational demo wallet.');return}try{const list=await eth.request({method:'eth_requestAccounts'});setRealAddress(list[0]);setWalletMode('METAMASK');setToast('Wallet connected. Marketplace purchases remain demo ledger transactions.');}catch{setToast('Wallet connection was declined.')}}
  async function verifyInclusion(block:LedgerBlock){const leaves=block.transactions.map(t=>t.hash);if(!leaves.length)return;const proof=await merkleProof(leaves,0);const valid=await verifyMerkleProof(leaves[0],proof,block.merkleRoot);setProofMessage(`${block.transactions[0].id}: ${valid?'inclusion verified':'proof rejected'} · ${proof.length} sibling hash${proof.length===1?'':'es'}`);}
  async function toggleTampering(){if(!blocks.length){setToast('Complete a purchase first to create a block.');return}if(!tampered){setBlocks(bs=>bs.map((b,i)=>i===0?{...b,hash:'f'.repeat(64)}:b));setTampered(true);return}let prev='0'.repeat(64);const repaired:LedgerBlock[]=[];for(const b of blocks){const hash=await sha256(JSON.stringify({number:b.number,previousHash:prev,timestamp:b.timestamp,root:b.merkleRoot}));const next={...b,previousHash:prev,hash};repaired.push(next);prev=hash;}setBlocks(repaired);setTampered(false);}
- function reset(){localStorage.removeItem('decentramart-v1');localStorage.removeItem('decentramart-balances');setProducts(baseProducts);setTxs([]);setBlocks([]);setBalances({maya:4.25,alex:2.8,sam:1.6});setAccountId('maya');setTampered(false);setPage('Marketplace');setToast('Demo data restored to its initial state.');}
+ function reset(){removeBrowserStorage('decentramart-v1');removeBrowserStorage('decentramart-balances');setProducts(baseProducts);setTxs([]);setBlocks([]);setBalances({maya:4.25,alex:2.8,sam:1.6});setAccountId('maya');setTampered(false);setPage('Marketplace');setToast('Demo data restored to its initial state.');}
  function listProduct(){let draft;try{draft=validateListingDraft(newName,newPrice)}catch(error){setToast(error instanceof Error?error.message:'Check the product name and price.');return}const p:Product={id:'DM-'+String(Date.now()).slice(-6),name:draft.name,description:'Community listing added in demo mode.',category:newCategory,price:draft.price,seller:buyer,emoji:'📦',available:true};setProducts(ps=>[p,...ps]);setNewName('');setNewPrice('');setShowList(false);setPage('Marketplace');setToast('Your demo listing is live.');}
  const totalVolume=txs.reduce((s,t)=>s+t.amount,0);
  const chartData=Array.from({length:7},(_,i)=>{
